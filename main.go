@@ -54,6 +54,13 @@ func main() {
 				cli.Exit(0)
 			}
 		})
+
+		cmd.Command("reserved", "Enumerate EC2 reserved instance status", func(cmd *cli.Cmd) {
+			cmd.Action = func() {
+				zaws.ReservedAnalysis(AwsSession)
+				cli.Exit(0)
+			}
+		})
 	})
 
 	zio.Run(os.Args)
