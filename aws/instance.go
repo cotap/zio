@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-
+	"github.com/cotap/zio/ssh"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -90,7 +90,7 @@ func ListInstance(session *session.Session, environment, role string) {
 	table.Render()
 }
 
-func SSHInstance(session *session.Session, environment string) {
+func SSHInstance(session *session.Session, environment, command string, concurrency int) {
 	svc := ec2.New(session)
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
@@ -108,36 +108,21 @@ func SSHInstance(session *session.Session, environment string) {
 		log.Fatal(err)
 	}
 
-	var ipAddress string
+	var ipAddresses []string
 	for _, res := range resp.Reservations {
 		for _, inst := range res.Instances {
 			if inst.PrivateIpAddress != nil {
-				ipAddress = *inst.PrivateIpAddress
-				break
+				ipAddresses = append(ipAddresses, *inst.PrivateIpAddress)
 			}
 		}
 	}
-	if ipAddress == "" {
-		log.Fatal("No instance found")
+	if len(ipAddresses) == 0 {
+		log.Fatal("No instances found")
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	pa := os.ProcAttr{
-		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
-		Dir:   cwd,
-	}
-
-	proc, err := os.StartProcess("/usr/bin/env", []string{"env", "ssh", ipAddress}, &pa)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = proc.Wait()
-	if err != nil {
-		log.Fatal(err)
+	if command != "" {
+		ssh.ExecAll(ipAddresses, command, concurrency)
+	} else {
+		ssh.SSH(ipAddresses[0])
 	}
 }

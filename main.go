@@ -48,9 +48,12 @@ func main() {
 
 		cmd.Command("ssh", "Start SSH session", func(cmd *cli.Cmd) {
 			environment := cmd.StringOpt("e env", "", "Filter by environment")
+			concurrency := cmd.IntOpt("c concurrency", 5, "Concurrency")
+			command := cmd.StringArg("CMD", "", "Command to execute")
 
+			cmd.Spec = "-e [-c] [CMD]"
 			cmd.Action = func() {
-				zaws.SSHInstance(AwsSession, *environment)
+				zaws.SSHInstance(AwsSession, *environment, *command, *concurrency)
 				cli.Exit(0)
 			}
 		})
