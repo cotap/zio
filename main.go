@@ -26,6 +26,8 @@ func main() {
 		EnvVar: "AWS_REGION",
 	})
 
+	zio.Spec = "[-r=<region>]"
+
 	zio.Before = func() {
 		var err error
 		AwsConfig = &aws.Config{Region: aws.String(*region)}
@@ -35,25 +37,26 @@ func main() {
 		}
 	}
 
-	zio.Command("instance instances i", "EC2 Instances", func(cmd *cli.Cmd) {
-		cmd.Command("list ls", "list instances", func(cmd *cli.Cmd) {
-			environment := cmd.StringOpt("e env", "", "Filter by environment")
-			role := cmd.StringOpt("r role", "", "Filter by role")
+	zio.Command("instance i", "EC2 Instances", func(cmd *cli.Cmd) {
+		tag := cmd.StringOpt("t tag", "", "Filter by tag")
+		stack := cmd.StringOpt("s stack", "", "Filter by Cloudformation stack")
 
+		cmd.Spec = "[-t=<Tag:Value> | -s=<stack>]"
+
+		cmd.Command("list ls", "list instances", func(cmd *cli.Cmd) {
 			cmd.Action = func() {
-				zaws.ListInstance(AwsSession, *environment, *role)
+				zaws.ListInstance(AwsSession, zaws.Filter(*tag, *stack))
 				cli.Exit(0)
 			}
 		})
 
 		cmd.Command("ssh", "Start SSH session", func(cmd *cli.Cmd) {
-			environment := cmd.StringOpt("e env", "", "Filter by environment")
 			concurrency := cmd.IntOpt("c concurrency", 5, "Concurrency")
 			command := cmd.StringArg("CMD", "", "Command to execute")
 
-			cmd.Spec = "-e [-c] [CMD]"
+			cmd.Spec = "[-c] [CMD]"
 			cmd.Action = func() {
-				zaws.SSHInstance(AwsSession, *environment, *command, *concurrency)
+				zaws.SSHInstance(AwsSession, zaws.Filter(*tag, *stack), *command, *concurrency)
 				cli.Exit(0)
 			}
 		})
