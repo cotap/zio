@@ -3,6 +3,7 @@ package aws
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -11,28 +12,33 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-func ListInstance(session *session.Session, environment, role string) {
-	svc := ec2.New(session)
-
+func Filter(tag, stack string) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 
-	if role != "" {
+	if tag != "" {
+		tagParts := strings.Split(tag, ":")
 		filters = append(filters, &ec2.Filter{
-			Name: aws.String("tag:Role"),
+			Name: aws.String("tag:" + tagParts[0]),
 			Values: []*string{
-				aws.String(role),
+				aws.String(tagParts[1]),
 			},
 		})
 	}
 
-	if environment != "" {
+	if stack != "" {
 		filters = append(filters, &ec2.Filter{
-			Name: aws.String("tag:Environment"),
+			Name: aws.String("tag:aws:cloudformation:stack-name"),
 			Values: []*string{
-				aws.String(environment),
+				aws.String(stack),
 			},
 		})
 	}
+
+	return filters
+}
+
+func ListInstance(session *session.Session, filters []*ec2.Filter) {
+	svc := ec2.New(session)
 
 	var params *ec2.DescribeInstancesInput
 	if len(filters) > 0 {
@@ -49,8 +55,7 @@ func ListInstance(session *session.Session, environment, role string) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{
 		"Instance ID",
-		"Environment",
-		"Role",
+		"Name",
 		"Type",
 		"AZ",
 		"State",
@@ -64,21 +69,18 @@ func ListInstance(session *session.Session, environment, role string) {
 				ipAddress = aws.String("")
 			}
 
-			var environment, role string
+			var name string
 			for _, t := range inst.Tags {
 				switch *t.Key {
-				case "Environment":
-					environment = *t.Value
-				case "Role":
-					role = *t.Value
+				case "Name":
+					name = *t.Value
 				default:
 				}
 			}
 
 			table.Append([]string{
 				*inst.InstanceId,
-				environment,
-				role,
+				name,
 				*inst.InstanceType,
 				*inst.Placement.AvailabilityZone,
 				*inst.State.Name,
@@ -90,17 +92,14 @@ func ListInstance(session *session.Session, environment, role string) {
 	table.Render()
 }
 
-func SSHInstance(session *session.Session, environment, command string, concurrency int) {
+func SSHInstance(session *session.Session, filters []*ec2.Filter, command string, concurrency int) {
 	svc := ec2.New(session)
-	params := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("tag:Environment"),
-				Values: []*string{
-					aws.String(environment),
-				},
-			},
-		},
+
+	var params *ec2.DescribeInstancesInput
+	if len(filters) > 0 {
+		params = &ec2.DescribeInstancesInput{
+			Filters: filters,
+		}
 	}
 
 	resp, err := svc.DescribeInstances(params)
