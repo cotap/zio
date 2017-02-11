@@ -38,35 +38,43 @@ func main() {
 	}
 
 	zio.Command("instance i", "EC2 Instances", func(cmd *cli.Cmd) {
-		tag := cmd.StringOpt("t tag", "", "Filter by tag")
-		stack := cmd.StringOpt("s stack", "", "Filter by Cloudformation stack")
 
-		cmd.Spec = "[-t=<Tag:Value> | -s=<stack>]"
+		var (
+			tag   = cmd.StringOpt("t tag", "", "Filter by tag")
+			stack = cmd.StringOpt("s stack", "", "Filter by Cloudformation stack")
+		)
 
-		cmd.Command("list ls", "list instances", func(cmd *cli.Cmd) {
+		cmd.Action = func() {
+			zaws.ListInstance(AwsSession, zaws.Filter(*tag, *stack))
+			cli.Exit(0)
+		}
+
+		cmd.Command("exec e", "Execute command on instance", func(cmd *cli.Cmd) {
+			var (
+				command     = cmd.StringArg("CMD", "", "Command to execute")
+				concurrency = cmd.IntOpt("c concurrency", 5, "Concurrency")
+			)
+
+			cmd.Spec = "[CMD] [-c]"
 			cmd.Action = func() {
-				zaws.ListInstance(AwsSession, zaws.Filter(*tag, *stack))
+				zaws.ExecInstance(AwsSession, zaws.Filter(*tag, *stack), *command, *concurrency)
 				cli.Exit(0)
 			}
 		})
 
-		cmd.Command("ssh", "Start SSH session", func(cmd *cli.Cmd) {
-			concurrency := cmd.IntOpt("c concurrency", 5, "Concurrency")
-			command := cmd.StringArg("CMD", "", "Command to execute")
-
-			cmd.Spec = "[-c] [CMD]"
+		cmd.Command("ssh", "SSH into an instance", func(cmd *cli.Cmd) {
 			cmd.Action = func() {
-				zaws.SSHInstance(AwsSession, zaws.Filter(*tag, *stack), *command, *concurrency)
+				zaws.SSHInstance(AwsSession, zaws.Filter(*tag, *stack))
 				cli.Exit(0)
 			}
 		})
+	})
 
-		cmd.Command("reserved", "Enumerate EC2 reserved instance status", func(cmd *cli.Cmd) {
-			cmd.Action = func() {
-				zaws.ReservedAnalysis(AwsSession)
-				cli.Exit(0)
-			}
-		})
+	zio.Command("reserved", "Enumerate EC2 reserved instance status", func(cmd *cli.Cmd) {
+		cmd.Action = func() {
+			zaws.ReservedAnalysis(AwsSession)
+			cli.Exit(0)
+		}
 	})
 
 	zio.Run(os.Args)
