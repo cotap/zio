@@ -38,12 +38,13 @@ func main() {
 	}
 
 	zio.Command("instance i", "EC2 Instances", func(cmd *cli.Cmd) {
-		tag := cmd.StringOpt("t tag", "", "Filter by tag")
-		stack := cmd.StringOpt("s stack", "", "Filter by Cloudformation stack")
-
-		cmd.Spec = "[-t=<Tag:Value> | -s=<stack>]"
-
 		cmd.Command("list ls", "list instances", func(cmd *cli.Cmd) {
+			var (
+				tag   = cmd.StringOpt("t tag", "", "Filter by tag")
+				stack = cmd.StringOpt("s stack", "", "Filter by Cloudformation stack")
+			)
+
+			cmd.Spec = "[--tag=<Tag:Value> | --stack=<stack>]"
 			cmd.Action = func() {
 				zaws.ListInstance(AwsSession, zaws.Filter(*tag, *stack))
 				cli.Exit(0)
@@ -51,10 +52,14 @@ func main() {
 		})
 
 		cmd.Command("ssh", "Start SSH session", func(cmd *cli.Cmd) {
-			concurrency := cmd.IntOpt("c concurrency", 5, "Concurrency")
-			command := cmd.StringArg("CMD", "", "Command to execute")
+			var (
+				tag         = cmd.StringOpt("t tag", "", "Filter by tag")
+				stack       = cmd.StringOpt("s stack", "", "Filter by Cloudformation stack")
+				command     = cmd.StringArg("CMD", "", "Command to execute")
+				concurrency = cmd.IntOpt("c concurrency", 5, "Concurrency")
+			)
 
-			cmd.Spec = "[-c] [CMD]"
+			cmd.Spec = "[CMD] [-c] [--tag=<Tag:Value> | --stack=<stack>]"
 			cmd.Action = func() {
 				zaws.SSHInstance(AwsSession, zaws.Filter(*tag, *stack), *command, *concurrency)
 				cli.Exit(0)
