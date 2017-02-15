@@ -20,14 +20,14 @@ func main() {
 	zio := cli.App("zio", "Manage zinc.io infrastructure")
 	zio.Version("v version", "zio 1.0.0")
 
-	region := zio.String(cli.StringOpt{
-		Name:   "r region",
+	region := zio.String(cli.StringArg{
+		Name:   "REGION",
 		Value:  "us-east-1",
 		Desc:   "AWS region",
 		EnvVar: "AWS_REGION",
 	})
 
-	zio.Spec = "[-r=<region>]"
+	zio.Spec = "[REGION]"
 
 	zio.Before = func() {
 		var err error
