@@ -3,180 +3,53 @@ package aws
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/cotap/zio/ssh"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-
-	"github.com/cotap/zio/ssh"
 )
 
-func Filter(tag, stack string) []*ec2.Filter {
-	filters := []*ec2.Filter{}
-
-	if tag != "" {
-		tagParts := strings.Split(tag, ":")
-		filters = append(filters, &ec2.Filter{
-			Name: aws.String("tag:" + tagParts[0]),
-			Values: []*string{
-				aws.String(tagParts[1]),
-			},
-		})
-	}
-
-	if stack != "" {
-		filters = append(filters, &ec2.Filter{
-			Name: aws.String("tag:aws:cloudformation:stack-name"),
-			Values: []*string{
-				aws.String(stack),
-			},
-		})
-	}
-
-	return filters
-}
-
-func ListInstance(session *session.Session, filters []*ec2.Filter) {
-	svc := ec2.New(session)
-
-	var params *ec2.DescribeInstancesInput
-	if len(filters) > 0 {
-		params = &ec2.DescribeInstancesInput{
-			Filters: filters,
-		}
-	}
-
-	resp, err := svc.DescribeInstances(params)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func ListInstance(instances []InstanceInfo) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{
 		"Instance ID",
 		"Name",
+		"Stack",
 		"Type",
 		"AZ",
-		"State",
 		"IP Address",
 		"Key Name",
 	})
-	for _, res := range resp.Reservations {
-		for _, inst := range res.Instances {
-			ipAddress := inst.PrivateIpAddress
-			if ipAddress == nil {
-				ipAddress = aws.String("")
-			}
 
-			var name string
-			for _, t := range inst.Tags {
-				switch *t.Key {
-				case "Name":
-					name = *t.Value
-				default:
-				}
-			}
-
-			table.Append([]string{
-				*inst.InstanceId,
-				name,
-				*inst.InstanceType,
-				*inst.Placement.AvailabilityZone,
-				*inst.State.Name,
-				*ipAddress,
-				*inst.KeyName,
-			})
-		}
+	for _, instance := range instances {
+		table.Append([]string{
+			instance.InstanceId,
+			instance.Name,
+			instance.StackName,
+			instance.InstanceType,
+			instance.AZ,
+			instance.IpAddress,
+			instance.KeyName,
+		})
 	}
 	table.Render()
 }
 
-func ExecInstance(session *session.Session, filters []*ec2.Filter, command string, concurrency int) {
-	svc := ec2.New(session)
-
-	var params *ec2.DescribeInstancesInput
-	if len(filters) > 0 {
-		params = &ec2.DescribeInstancesInput{
-			Filters: filters,
-		}
-	}
-
-	resp, err := svc.DescribeInstances(params)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func ExecInstance(instances []InstanceInfo, command string, concurrency int) {
 	var ipAddresses []string
-	for _, res := range resp.Reservations {
-		for _, inst := range res.Instances {
-			if inst.PrivateIpAddress != nil {
-				ipAddresses = append(ipAddresses, *inst.PrivateIpAddress)
-			}
-		}
-	}
-	if len(ipAddresses) == 0 {
-		log.Fatal("No instances found")
+	for _, instance := range instances {
+		ipAddresses = append(ipAddresses, instance.IpAddress)
 	}
 
-	if command != "" {
-		ssh.ExecAll(ipAddresses, command, concurrency)
-	} else {
-		ssh.SSH(ipAddresses[0])
-	}
+	ssh.ExecAll(ipAddresses, command, concurrency)
 }
 
-type instanceInfo struct {
-	name      string
-	ipAddress string
-}
-
-func SSHInstance(session *session.Session, filters []*ec2.Filter) {
-	svc := ec2.New(session)
-
-	var params *ec2.DescribeInstancesInput
-	if len(filters) > 0 {
-		params = &ec2.DescribeInstancesInput{
-			Filters: filters,
-		}
-	}
-
-	resp, err := svc.DescribeInstances(params)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var instances []instanceInfo
-	for _, res := range resp.Reservations {
-		for _, inst := range res.Instances {
-			if inst.PrivateIpAddress != nil {
-
-				ipAddress := inst.PrivateIpAddress
-				if ipAddress == nil {
-					ipAddress = aws.String("")
-				}
-
-				var name string
-				for _, t := range inst.Tags {
-					switch *t.Key {
-					case "Name":
-						name = *t.Value
-					default:
-					}
-				}
-
-				instances = append(instances, instanceInfo{name: name, ipAddress: *ipAddress})
-			}
-		}
-	}
-
+func SSHInstance(instances []InstanceInfo) {
 	if len(instances) == 1 {
-		ssh.SSH(instances[0].ipAddress)
+		ssh.SSH(instances[0].IpAddress)
 		return
 	}
 
@@ -188,8 +61,9 @@ func SSHInstance(session *session.Session, filters []*ec2.Filter) {
 	for i, instance := range instances {
 		table.Append([]string{
 			color.New(color.Bold).Sprint(strconv.Itoa(i + 1)),
-			color.New(color.FgGreen).Sprint(instance.name),
-			color.New(color.FgBlue, color.Bold).Sprint(instance.ipAddress),
+			color.New(color.FgGreen).Sprint(instance.Name),
+			color.New(color.FgMagenta, color.Bold).Sprint(instance.StackName),
+			color.New(color.FgBlue, color.Bold).Sprint(instance.IpAddress),
 		})
 	}
 	table.Render()
@@ -197,13 +71,13 @@ func SSHInstance(session *session.Session, filters []*ec2.Filter) {
 
 	var ipAddress string
 	for {
-		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Login to [1]: ")
+		reader := bufio.NewReader(os.Stdin)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 
 		if input == "" {
-			ipAddress = instances[0].ipAddress
+			ipAddress = instances[0].IpAddress
 			break
 		}
 
@@ -212,7 +86,7 @@ func SSHInstance(session *session.Session, filters []*ec2.Filter) {
 			continue
 		}
 
-		ipAddress = instances[index-1].ipAddress
+		ipAddress = instances[index-1].IpAddress
 		break
 	}
 	ssh.SSH(ipAddress)

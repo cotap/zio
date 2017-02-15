@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,10 @@ import (
 )
 
 func SSH(ipAddress string) error {
+	if ipAddress == "" {
+		return errors.New("No IP address")
+	}
+
 	cmd := exec.Command("/usr/bin/env", "ssh", ipAddress)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -18,6 +23,10 @@ func SSH(ipAddress string) error {
 }
 
 func Exec(ipAddress, command string) error {
+	if ipAddress == "" {
+		return errors.New("No IP address")
+	}
+
 	cmd := exec.Command("/usr/bin/env", "ssh", ipAddress, command)
 
 	stdout, err := cmd.StdoutPipe()
@@ -37,7 +46,9 @@ func Exec(ipAddress, command string) error {
 	go prefixedStdout.WriteTo(os.Stdout)
 	go prefixedStdErr.WriteTo(os.Stderr)
 
-	return cmd.Run()
+	cmd.Run()
+
+	return nil
 }
 
 func ExecAll(ipAddresses []string, command string, concurrency int) {
@@ -48,7 +59,9 @@ func ExecAll(ipAddresses []string, command string, concurrency int) {
 		pool <- true
 		go func(ipAddress string) {
 			defer func() { <-pool }()
-			Exec(ipAddress, command)
+			if err := Exec(ipAddress, command); err != nil {
+				log.Println(err)
+			}
 		}(ipAddress)
 	}
 

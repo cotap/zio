@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -19,14 +20,14 @@ func main() {
 	zio := cli.App("zio", "Manage zinc.io infrastructure")
 	zio.Version("v version", "zio 1.0.0")
 
-	region := zio.String(cli.StringOpt{
-		Name:   "r region",
+	region := zio.String(cli.StringArg{
+		Name:   "REGION",
 		Value:  "us-east-1",
 		Desc:   "AWS region",
 		EnvVar: "AWS_REGION",
 	})
 
-	zio.Spec = "[-r=<region>]"
+	zio.Spec = "[REGION]"
 
 	zio.Before = func() {
 		var err error
@@ -38,33 +39,47 @@ func main() {
 	}
 
 	zio.Command("instance i", "EC2 Instances", func(cmd *cli.Cmd) {
-
 		var (
-			tag   = cmd.StringOpt("t tag", "", "Filter by tag")
-			stack = cmd.StringOpt("s stack", "", "Filter by Cloudformation stack")
+			instances []zaws.InstanceInfo
+			query     = cmd.StringArg("QUERY", "", "Fuzzy search query")
+			stack     = cmd.StringOpt("s stack", "", "Stack")
+			tag       = cmd.StringOpt("t tag", "", "Tag")
 		)
 
+		cmd.Before = func() {
+			var err error
+			instances, err = zaws.GetInstances(AwsSession, *query, *stack, *tag)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if len(instances) == 0 {
+				fmt.Println("No instances found for query")
+				cli.Exit(0)
+			}
+		}
+
+		cmd.Spec = "[QUERY] [--stack=<stack name>] [--tag=<Name:Value>]"
 		cmd.Action = func() {
-			zaws.ListInstance(AwsSession, zaws.Filter(*tag, *stack))
+			zaws.ListInstance(instances)
 			cli.Exit(0)
 		}
 
 		cmd.Command("exec e", "Execute command on instance", func(cmd *cli.Cmd) {
 			var (
 				command     = cmd.StringArg("CMD", "", "Command to execute")
-				concurrency = cmd.IntOpt("c concurrency", 5, "Concurrency")
+				concurrency = cmd.IntOpt("c concurrency", 2, "Concurrency")
 			)
-
-			cmd.Spec = "[CMD] [-c]"
+			cmd.Spec = "CMD [-c]"
 			cmd.Action = func() {
-				zaws.ExecInstance(AwsSession, zaws.Filter(*tag, *stack), *command, *concurrency)
+				zaws.ExecInstance(instances, *command, *concurrency)
 				cli.Exit(0)
 			}
 		})
 
 		cmd.Command("ssh", "SSH into an instance", func(cmd *cli.Cmd) {
 			cmd.Action = func() {
-				zaws.SSHInstance(AwsSession, zaws.Filter(*tag, *stack))
+				zaws.SSHInstance(instances)
 				cli.Exit(0)
 			}
 		})
