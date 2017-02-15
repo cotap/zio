@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -38,14 +39,29 @@ func main() {
 	}
 
 	zio.Command("instance i", "EC2 Instances", func(cmd *cli.Cmd) {
-
 		var (
-			tag   = cmd.StringOpt("t tag", "", "Filter by tag")
-			stack = cmd.StringOpt("s stack", "", "Filter by Cloudformation stack")
+			instances []zaws.InstanceInfo
+			search    = cmd.StringArg("SEARCH", "", "Fuzzy search")
+			stack     = cmd.StringOpt("s stack", "", "Stack")
+			tag       = cmd.StringOpt("t tag", "", "Tag")
 		)
 
+		cmd.Before = func() {
+			var err error
+			instances, err = zaws.GetInstances(AwsSession, *search, *stack, *tag)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if len(instances) == 0 {
+				fmt.Println("No instances found for search")
+				cli.Exit(0)
+			}
+		}
+
+		cmd.Spec = "[SEARCH] [--stack=<stack name>] [--tag=<Name:Value>]"
 		cmd.Action = func() {
-			zaws.ListInstance(AwsSession, zaws.Filter(*tag, *stack))
+			zaws.ListInstance(instances)
 			cli.Exit(0)
 		}
 
@@ -54,17 +70,16 @@ func main() {
 				command     = cmd.StringArg("CMD", "", "Command to execute")
 				concurrency = cmd.IntOpt("c concurrency", 5, "Concurrency")
 			)
-
-			cmd.Spec = "[CMD] [-c]"
+			cmd.Spec = "CMD [-c]"
 			cmd.Action = func() {
-				zaws.ExecInstance(AwsSession, zaws.Filter(*tag, *stack), *command, *concurrency)
+				zaws.ExecInstance(instances, *command, *concurrency)
 				cli.Exit(0)
 			}
 		})
 
 		cmd.Command("ssh", "SSH into an instance", func(cmd *cli.Cmd) {
 			cmd.Action = func() {
-				zaws.SSHInstance(AwsSession, zaws.Filter(*tag, *stack))
+				zaws.SSHInstance(instances)
 				cli.Exit(0)
 			}
 		})
