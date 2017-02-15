@@ -3,7 +3,6 @@ package aws
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -42,14 +41,7 @@ func ListInstance(instances []InstanceInfo) {
 func ExecInstance(instances []InstanceInfo, command string, concurrency int) {
 	var ipAddresses []string
 	for _, instance := range instances {
-		if instance.IpAddress != "" {
-			ipAddresses = append(ipAddresses, instance.IpAddress)
-		}
-	}
-
-	if len(ipAddresses) == 0 {
-		log.Fatal("No instances found")
-		return
+		ipAddresses = append(ipAddresses, instance.IpAddress)
 	}
 
 	ssh.ExecAll(ipAddresses, command, concurrency)
