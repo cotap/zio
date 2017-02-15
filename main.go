@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-
-	cli "github.com/jawher/mow.cli"
+	"os/user"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/jawher/mow.cli"
+	"github.com/mattn/go-shellwords"
+	"github.com/vaughan0/go-ini"
 
 	zaws "github.com/cotap/zio/aws"
 )
@@ -19,6 +22,11 @@ var AwsSession *session.Session
 func main() {
 	zio := cli.App("zio", "Manage zinc.io infrastructure")
 	zio.Version("v version", "zio 1.0.0")
+
+	config, _ := loadConfig()
+	if config != nil {
+		applyConfig(config)
+	}
 
 	region := zio.String(cli.StringArg{
 		Name:   "REGION",
@@ -93,4 +101,45 @@ func main() {
 	})
 
 	zio.Run(os.Args)
+}
+
+func applyConfig(config ini.File) {
+	replaceAliases(config.Section("alias"))
+}
+
+func loadConfig() (ini.File, error) {
+	config := make(ini.File)
+
+	if err := config.LoadFile(".ziorc"); err == nil {
+		return config, nil
+	}
+
+	usr, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+
+	if err = config.LoadFile(usr.HomeDir + "/.ziorc"); err == nil {
+		return config, nil
+	}
+
+	return nil, err
+}
+
+func replaceAliases(aliases map[string]string) {
+	aliased := false
+	for i, arg := range os.Args {
+		if replacement, ok := aliases[arg]; ok {
+			newArgs, err := shellwords.Parse(replacement)
+			if err != nil {
+				log.Fatal(err)
+			}
+			aliased = true
+			os.Args = append(append(os.Args[:i], newArgs...), os.Args[i+1:]...)
+		}
+	}
+
+	if aliased {
+		fmt.Printf("zio %v\n", strings.Join(os.Args[1:], " "))
+	}
 }
