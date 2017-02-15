@@ -19,11 +19,11 @@ type InstanceInfo struct {
 	StackName    string
 }
 
-func GetInstances(session *session.Session, search, stack, tag string) ([]InstanceInfo, error) {
+func GetInstances(session *session.Session, query, stack, tag string) ([]InstanceInfo, error) {
 	svc := ec2.New(session)
 
 	params := &ec2.DescribeInstancesInput{}
-	if filters := filter(search, stack, tag); len(filters) > 0 {
+	if filters := filter(query, stack, tag); len(filters) > 0 {
 		params.Filters = filters
 	}
 
@@ -64,18 +64,18 @@ func GetInstances(session *session.Session, search, stack, tag string) ([]Instan
 			})
 		}
 	}
+
 	return instances, nil
 }
 
-func filter(search, stack, tag string) []*ec2.Filter {
+func filter(query, stack, tag string) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 
-	if search != "" {
-		search = "*" + search + "*"
+	if query != "" {
 		filters = append(filters, &ec2.Filter{
 			Name: aws.String("tag-value"),
 			Values: []*string{
-				aws.String(search),
+				aws.String("*" + query + "*"),
 			},
 		})
 	}

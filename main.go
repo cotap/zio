@@ -41,25 +41,25 @@ func main() {
 	zio.Command("instance i", "EC2 Instances", func(cmd *cli.Cmd) {
 		var (
 			instances []zaws.InstanceInfo
-			search    = cmd.StringArg("SEARCH", "", "Fuzzy search")
+			query     = cmd.StringArg("QUERY", "", "Fuzzy search query")
 			stack     = cmd.StringOpt("s stack", "", "Stack")
 			tag       = cmd.StringOpt("t tag", "", "Tag")
 		)
 
 		cmd.Before = func() {
 			var err error
-			instances, err = zaws.GetInstances(AwsSession, *search, *stack, *tag)
+			instances, err = zaws.GetInstances(AwsSession, *query, *stack, *tag)
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			if len(instances) == 0 {
-				fmt.Println("No instances found for search")
+				fmt.Println("No instances found for query")
 				cli.Exit(0)
 			}
 		}
 
-		cmd.Spec = "[SEARCH] [--stack=<stack name>] [--tag=<Name:Value>]"
+		cmd.Spec = "[QUERY] [--stack=<stack name>] [--tag=<Name:Value>]"
 		cmd.Action = func() {
 			zaws.ListInstance(instances)
 			cli.Exit(0)
