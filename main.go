@@ -68,7 +68,7 @@ func main() {
 		cmd.Command("exec e", "Execute command on instance", func(cmd *cli.Cmd) {
 			var (
 				command     = cmd.StringArg("CMD", "", "Command to execute")
-				concurrency = cmd.IntOpt("c concurrency", 5, "Concurrency")
+				concurrency = cmd.IntOpt("c concurrency", 2, "Concurrency")
 			)
 			cmd.Spec = "CMD [-c]"
 			cmd.Action = func() {
