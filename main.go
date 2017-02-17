@@ -127,19 +127,33 @@ func loadConfig() (ini.File, error) {
 }
 
 func replaceAliases(aliases map[string]string) {
-	aliased := false
-	for i, arg := range os.Args {
-		if replacement, ok := aliases[arg]; ok {
-			newArgs, err := shellwords.Parse(replacement)
-			if err != nil {
-				log.Fatal(err)
-			}
-			aliased = true
-			os.Args = append(append(os.Args[:i], newArgs...), os.Args[i+1:]...)
-		}
+	if len(aliases) == 0 {
+		return
 	}
 
-	if aliased {
-		fmt.Printf("zio %v\n", strings.Join(os.Args[1:], " "))
+	aliased := false
+	args := make([]string, 0)
+	for _, arg := range os.Args {
+		replacement, ok := aliases[arg]
+		if !ok {
+			args = append(args, arg)
+			continue
+		}
+
+		newArgs, err := shellwords.Parse(replacement)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		aliased = true
+		args = append(args, newArgs...)
 	}
+
+	if !aliased {
+		return
+	}
+
+	os.Args = args
+	fmt.Printf("zio %v\n", strings.Join(os.Args[1:], " "))
+
 }
