@@ -52,11 +52,12 @@ func main() {
 			query     = cmd.StringArg("QUERY", "", "Fuzzy search query")
 			stack     = cmd.StringOpt("s stack", "", "Stack")
 			tag       = cmd.StringOpt("t tag", "", "Tag")
+			ips       = cmd.StringsOpt("ip", make([]string, 0), "Ip")
 		)
 
 		cmd.Before = func() {
 			var err error
-			instances, err = zaws.GetInstances(AwsSession, *query, *stack, *tag)
+			instances, err = zaws.GetInstances(AwsSession, *query, *stack, *tag, *ips)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -67,7 +68,7 @@ func main() {
 			}
 		}
 
-		cmd.Spec = "[QUERY] [--stack=<stack name>] [--tag=<Name:Value>]"
+		cmd.Spec = "[QUERY] [--stack=<stack name>] [--tag=<Name:Value>] [--ip=<ip>]..."
 		cmd.Action = func() {
 			zaws.ListInstance(instances)
 			cli.Exit(0)
