@@ -8,6 +8,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+type InstanceQuery struct {
+	Fuzzy string
+	Stack string
+	Tag   string
+	Ids   []string
+	Ips   []string
+}
+
 type InstanceInfo struct {
 	InstanceId   string
 	Name         string
@@ -19,11 +27,11 @@ type InstanceInfo struct {
 	StackName    string
 }
 
-func GetInstances(session *session.Session, query, stack, tag string, ips []string) ([]InstanceInfo, error) {
+func GetInstances(session *session.Session, query *InstanceQuery) ([]InstanceInfo, error) {
 	svc := ec2.New(session)
 
 	params := &ec2.DescribeInstancesInput{}
-	if filters := filter(query, stack, tag, ips); len(filters) > 0 {
+	if filters := query.filters(); len(filters) > 0 {
 		params.Filters = filters
 	}
 
@@ -68,29 +76,29 @@ func GetInstances(session *session.Session, query, stack, tag string, ips []stri
 	return instances, nil
 }
 
-func filter(query, stack, tag string, ips []string) []*ec2.Filter {
+func (q *InstanceQuery) filters() []*ec2.Filter {
 	filters := []*ec2.Filter{}
 
-	if query != "" {
+	if q.Fuzzy != "" {
 		filters = append(filters, &ec2.Filter{
 			Name: aws.String("tag-value"),
 			Values: []*string{
-				aws.String("*" + query + "*"),
+				aws.String("*" + q.Fuzzy + "*"),
 			},
 		})
 	}
 
-	if stack != "" {
+	if q.Stack != "" {
 		filters = append(filters, &ec2.Filter{
 			Name: aws.String("tag:aws:cloudformation:stack-name"),
 			Values: []*string{
-				aws.String(stack),
+				aws.String(q.Stack),
 			},
 		})
 	}
 
-	if tag != "" {
-		tagParts := strings.Split(tag, ":")
+	if q.Tag != "" {
+		tagParts := strings.Split(q.Tag, ":")
 		filters = append(filters, &ec2.Filter{
 			Name: aws.String("tag:" + tagParts[0]),
 			Values: []*string{
@@ -99,9 +107,20 @@ func filter(query, stack, tag string, ips []string) []*ec2.Filter {
 		})
 	}
 
-	if len(ips) > 0 {
-		awsIps := make([]*string, len(ips))
-		for i, ip := range ips {
+	if len(q.Ids) > 0 {
+		awsIds := make([]*string, len(q.Ids))
+		for i, ip := range q.Ids {
+			awsIds[i] = aws.String(ip)
+		}
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String("instance-id"),
+			Values: awsIds,
+		})
+	}
+
+	if len(q.Ips) > 0 {
+		awsIps := make([]*string, len(q.Ips))
+		for i, ip := range q.Ips {
 			awsIps[i] = aws.String(ip)
 		}
 		filters = append(filters, &ec2.Filter{
