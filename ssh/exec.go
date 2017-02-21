@@ -3,6 +3,7 @@ package ssh
 import (
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"os"
 	"os/exec"
@@ -10,6 +11,19 @@ import (
 	"github.com/fatih/color"
 	"github.com/goware/prefixer"
 )
+
+var colors []color.Attribute
+
+func init() {
+	colors = []color.Attribute{
+		color.FgRed,
+		color.FgGreen,
+		color.FgYellow,
+		color.FgBlue,
+		color.FgMagenta,
+		color.FgCyan,
+	}
+}
 
 func SSH(ipAddress string) error {
 	if ipAddress == "" {
@@ -39,7 +53,8 @@ func Exec(ipAddress, command string) error {
 		log.Fatal(err)
 	}
 
-	prefix := color.New(color.FgBlue).Sprint(fmt.Sprintf("%-15s", ipAddress))
+	cAttr := colors[hash(ipAddress)%len(colors)]
+	prefix := color.New(cAttr).Sprint(fmt.Sprintf("%-15s| ", ipAddress))
 	prefixedStdout := prefixer.New(stdout, prefix)
 	prefixedStdErr := prefixer.New(stderr, prefix)
 
@@ -69,4 +84,10 @@ func ExecAll(ipAddresses []string, command string, concurrency int) {
 	for i := 0; i < cap(pool); i++ {
 		pool <- true
 	}
+}
+
+func hash(s string) int {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return int(h.Sum32())
 }
