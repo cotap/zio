@@ -19,11 +19,11 @@ type InstanceInfo struct {
 	StackName    string
 }
 
-func GetInstances(session *session.Session, query, stack, tag string) ([]InstanceInfo, error) {
+func GetInstances(session *session.Session, query, stack, tag string, ips []string) ([]InstanceInfo, error) {
 	svc := ec2.New(session)
 
 	params := &ec2.DescribeInstancesInput{}
-	if filters := filter(query, stack, tag); len(filters) > 0 {
+	if filters := filter(query, stack, tag, ips); len(filters) > 0 {
 		params.Filters = filters
 	}
 
@@ -68,7 +68,7 @@ func GetInstances(session *session.Session, query, stack, tag string) ([]Instanc
 	return instances, nil
 }
 
-func filter(query, stack, tag string) []*ec2.Filter {
+func filter(query, stack, tag string, ips []string) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 
 	if query != "" {
@@ -96,6 +96,17 @@ func filter(query, stack, tag string) []*ec2.Filter {
 			Values: []*string{
 				aws.String(tagParts[1]),
 			},
+		})
+	}
+
+	if len(ips) > 0 {
+		awsIps := make([]*string, len(ips))
+		for i, ip := range ips {
+			awsIps[i] = aws.String(ip)
+		}
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String("private-ip-address"),
+			Values: awsIps,
 		})
 	}
 
