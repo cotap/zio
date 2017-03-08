@@ -3,6 +3,7 @@ package aws
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -47,9 +48,12 @@ func ExecInstance(instances []InstanceInfo, command string, concurrency int) {
 	ssh.ExecAll(ipAddresses, command, concurrency)
 }
 
-func SSHInstance(instances []InstanceInfo) {
+func SSHInstance(instances []InstanceInfo, sshCmd string) {
 	if len(instances) == 1 {
-		ssh.SSH(instances[0].IpAddress)
+		err := ssh.SSH(instances[0].IpAddress, sshCmd)
+		if err != nil {
+			log.Println(err)
+		}
 		return
 	}
 
@@ -89,5 +93,9 @@ func SSHInstance(instances []InstanceInfo) {
 		ipAddress = instances[index-1].IpAddress
 		break
 	}
-	ssh.SSH(ipAddress)
+
+	err := ssh.SSH(ipAddress, sshCmd)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
