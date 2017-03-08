@@ -88,8 +88,12 @@ func main() {
 		})
 
 		cmd.Command("ssh", "SSH into an instance", func(cmd *cli.Cmd) {
+			var (
+				command = cmd.StringArg("EXEC", "", "Command to attach to the session")
+			)
+			cmd.Spec = "[EXEC]"
 			cmd.Action = func() {
-				zaws.SSHInstance(instances)
+				zaws.SSHInstance(instances, *command)
 				cli.Exit(0)
 			}
 		})

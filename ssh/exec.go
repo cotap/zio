@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/goware/prefixer"
@@ -25,12 +26,18 @@ func init() {
 	}
 }
 
-func SSH(ipAddress string) error {
+func SSH(ipAddress string, sshCmd string) error {
 	if ipAddress == "" {
 		return errors.New("No IP address")
 	}
 
-	cmd := exec.Command("/usr/bin/env", "ssh", ipAddress)
+	var cmd *exec.Cmd
+	if sshCmd != "" {
+		sshCmd = strings.Replace(sshCmd, "'", "\\'", -1)
+		cmd = exec.Command("/usr/bin/env", "ssh", ipAddress, "-t", "exec $SHELL -l -c '"+sshCmd+"'")
+	} else {
+		cmd = exec.Command("/usr/bin/env", "ssh", ipAddress)
+	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
@@ -61,9 +68,7 @@ func Exec(ipAddress, command string) error {
 	go prefixedStdout.WriteTo(os.Stdout)
 	go prefixedStdErr.WriteTo(os.Stderr)
 
-	cmd.Run()
-
-	return nil
+	return cmd.Run()
 }
 
 func ExecAll(ipAddresses []string, command string, concurrency int) {
