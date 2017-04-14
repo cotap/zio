@@ -36,7 +36,7 @@ func SSH(ipAddress string, sshCmd string) error {
 		sshCmd = strings.Replace(sshCmd, "'", "\\'", -1)
 		cmd = exec.Command("/usr/bin/env", "ssh", ipAddress, "-t", "exec $SHELL -l -c '"+sshCmd+"'")
 	} else {
-		cmd = exec.Command("/usr/bin/env", "ssh", ipAddress)
+		cmd = exec.Command("/usr/bin/env", "ssh", ipAddress, "-t")
 	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -48,7 +48,7 @@ func Exec(ipAddress, command string) error {
 		return errors.New("No IP address")
 	}
 
-	cmd := exec.Command("/usr/bin/env", "ssh", ipAddress, command)
+	cmd := exec.Command("/usr/bin/env", "ssh", ipAddress, "-tt", command)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
