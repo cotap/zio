@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/olekukonko/tablewriter"
@@ -45,7 +46,17 @@ func (r reservedAnalysis) allocate(az string, instanceType string) {
 func ReservedAnalysis(session *session.Session) {
 	svc := ec2.New(session)
 
-	instances, err := svc.DescribeInstances(nil)
+	filters := []*ec2.Filter{
+		{
+			Name: aws.String("instance-state-name"),
+			Values: []*string{
+				aws.String("running"),
+				aws.String("pending"),
+			},
+		},
+	}
+
+	instances, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{Filters: filters})
 	if err != nil {
 		log.Fatal(err)
 	}
