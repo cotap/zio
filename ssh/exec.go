@@ -68,10 +68,16 @@ func Exec(ipAddress, command string) error {
 	go prefixedStdout.WriteTo(os.Stdout)
 	go prefixedStdErr.WriteTo(os.Stderr)
 
-	return cmd.Run()
+	err = cmd.Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Exec failed for %s: %s\n", ipAddress, err.Error())
+	}
+
+	return err
 }
 
-func ExecAll(ipAddresses []string, command string, concurrency int) {
+func ExecAll(ipAddresses []string, command string, concurrency int) error {
+	var execErr error
 	pool := make(chan bool, concurrency)
 
 	// fill pool and wait for draining before continuing
@@ -80,7 +86,7 @@ func ExecAll(ipAddresses []string, command string, concurrency int) {
 		go func(ipAddress string) {
 			defer func() { <-pool }()
 			if err := Exec(ipAddress, command); err != nil {
-				log.Println(err)
+				execErr = err
 			}
 		}(ipAddress)
 	}
@@ -89,6 +95,8 @@ func ExecAll(ipAddresses []string, command string, concurrency int) {
 	for i := 0; i < cap(pool); i++ {
 		pool <- true
 	}
+
+	return execErr
 }
 
 func hash(s string) int {

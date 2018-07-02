@@ -39,13 +39,13 @@ func ListInstance(instances []InstanceInfo) {
 	table.Render()
 }
 
-func ExecInstance(instances []InstanceInfo, command string, concurrency int) {
+func ExecInstance(instances []InstanceInfo, command string, concurrency int) error {
 	var ipAddresses []string
 	for _, instance := range instances {
 		ipAddresses = append(ipAddresses, instance.IpAddress)
 	}
 
-	ssh.ExecAll(ipAddresses, command, concurrency)
+	return ssh.ExecAll(ipAddresses, command, concurrency)
 }
 
 func SSHInstance(instances []InstanceInfo, sshCmd string) {
@@ -57,7 +57,7 @@ func SSHInstance(instances []InstanceInfo, sshCmd string) {
 		return
 	}
 
-	fmt.Println("\nMultiple instances found:\n")
+	fmt.Println("\nMultiple instances found:")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetBorder(false)
 	table.SetRowLine(false)
