@@ -65,7 +65,7 @@ func main() {
 
 			if len(instances) == 0 {
 				fmt.Println("No instances found for query")
-				cli.Exit(0)
+				cli.Exit(1)
 			}
 		}
 
@@ -82,7 +82,10 @@ func main() {
 			)
 			cmd.Spec = "CMD [-c]"
 			cmd.Action = func() {
-				zaws.ExecInstance(instances, *command, *concurrency)
+				err := zaws.ExecInstance(instances, *command, *concurrency)
+				if err != nil {
+					cli.Exit(1)
+				}
 				cli.Exit(0)
 			}
 		})
