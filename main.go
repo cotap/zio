@@ -20,7 +20,7 @@ var AwsConfig *aws.Config
 var AwsSession *session.Session
 
 func main() {
-	zio := cli.App("zio", "Manage zinc.io infrastructure")
+	zio := cli.App("zio", "Manage AWS infrastructure")
 	zio.Version("v version", "zio 1.0.0")
 
 	config, _ := loadConfig()

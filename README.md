@@ -1,13 +1,13 @@
 # zio
 
-CLI tool for zinc.io infrastructure
+CLI tool for AWS infrastructure
 
 ## Usage
 
 ```
 Usage: zio [REGION] COMMAND [arg...]
 
-Manage zinc.io infrastructure
+Manage AWS infrastructure
 
 Arguments:
   REGION="us-east-1"   AWS region ($AWS_REGION)
