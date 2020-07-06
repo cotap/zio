@@ -112,5 +112,7 @@ Works much like the `git` alias option:
 
 ```
 [alias]
-  converge = exec "sudo chef-client" -c 3
+  converge=exec "sudo chef-client"
+  prod=us-west-2 i
+  sand=us-east-1 i
 ```
